@@ -18,6 +18,7 @@ import org.spongepowered.api.data.manipulator.mutable.tileentity.SignData;
 import org.spongepowered.api.entity.Entity;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.Order;
 import org.spongepowered.api.event.action.FishingEvent;
 import org.spongepowered.api.event.block.ChangeBlockEvent;
 import org.spongepowered.api.event.block.InteractBlockEvent;
@@ -35,6 +36,7 @@ import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.world.Location;
+import org.spongepowered.api.world.World;
 import org.spongepowered.common.item.inventory.adapter.impl.slots.SlotAdapter;
 
 import com.erigitic.config.AccountManager;
@@ -46,6 +48,7 @@ import com.erigitic.jobs.jobs.WarriorJob;
 import com.erigitic.main.TotalEconomy;
 import com.google.common.collect.Maps;
 
+import net.minecraft.inventory.ContainerPlayer;
 import net.minecraft.inventory.ContainerWorkbench;
 import net.minecraft.util.Tuple;
 import ninja.leaping.configurate.ConfigurationNode;
@@ -378,63 +381,58 @@ public class TEJobs {
      *
      * @param event PlayerBlockBreakEvent
      */
-    @Listener
-    public void onPlayerBlockBreak(ChangeBlockEvent.Break event) {
-        if (event.getCause().first(Player.class).isPresent()) {
-            Player player = event.getCause().first(Player.class).get();
-            UUID playerUUID = player.getUniqueId();
-            String playerJob = getPlayerJob(player);
+    @Listener(order=Order.LAST)
+    public void onPlayerBlockBreak(ChangeBlockEvent.Break event, @Root Player player) {
+        UUID playerUUID = player.getUniqueId();
+        String playerJob = getPlayerJob(player);
 
-            // TODO: Not really sure if this will fix anything but lets hope it
-            // does. Needs some testing.
-            if (event.getTransactions().get(0).getOriginal().getState().getType().getName().split(":").length >= 2) {
-                String blockName = event.getTransactions().get(0).getOriginal().getState().getType().getName().split(":")[1];
-                Location blockLoc = event.getTransactions().get(0).getOriginal().getLocation().get();
+        event.getTransactions().forEach(t -> {
+            String blockName = t.getOriginal().getState().getType().getId();
+            Location<World> blockLoc = t.getOriginal().getLocation().get();
 
-                // Checks if the users current job has the break node.
-                boolean hasBreakNode = (jobsConfig.getNode(playerJob, "break").getValue() != null);
-                boolean preventFarming = jobsConfig.getNode("preventJobFarming").getBoolean();
+            // Checks if the users current job has the break node.
+            boolean hasBreakNode = (jobsConfig.getNode(playerJob, "break").getValue() != null);
+            boolean preventFarming = jobsConfig.getNode("preventJobFarming").getBoolean();
 
-                // TODO: Consolidate this into a function so I do not have to
-                // dirty up the code.
-                if (jobsConfig.getNode(playerJob).getValue() != null) {
-                    if (hasBreakNode && jobsConfig.getNode(playerJob, "break", blockName).getValue() != null) {
-                        if (preventFarming) {
-                            blockLoc.setBlockType(BlockTypes.AIR);
-                        }
-
-                        // TODO: Simplify all the code below into a single
-                        // function so I do not have to rewrite it for every
-                        // event.
-                        int expAmount = jobsConfig.getNode(playerJob, "break", blockName, "expreward").getInt();
-                        boolean notify = accountConfig.getNode(playerUUID.toString(), "jobnotifications").getBoolean();
-
-                        BigDecimal payAmount = new BigDecimal(jobsConfig.getNode(playerJob, "break", blockName, "pay").getString()).setScale(2,
-                                BigDecimal.ROUND_DOWN);
-
-                        TEAccount playerAccount = (TEAccount) accountManager.getOrCreateAccount(player.getUniqueId()).get();
-
-                        if (notify) {
-                            player.sendMessage(Text.of(TextColors.GOLD, accountManager.getDefaultCurrency().getSymbol(), payAmount, TextColors.GRAY,
-                                    " has been added to your balance."));
-                        }
-
-                        addExp(player, expAmount);
-                        playerAccount.deposit(accountManager.getDefaultCurrency(), payAmount, Cause.of(NamedCause.of("TotalEconomy", this)));
-                        checkForLevel(player);
+            // TODO: Consolidate this into a function so I do not have to
+            // dirty up the code.
+            if (jobsConfig.getNode(playerJob).getValue() != null) {
+                if (hasBreakNode && jobsConfig.getNode(playerJob, "break", blockName).getValue() != null) {
+                    if (preventFarming) {
+                        blockLoc.setBlockType(BlockTypes.AIR);
                     }
+
+                    // TODO: Simplify all the code below into a single
+                    // function so I do not have to rewrite it for every
+                    // event.
+                    int expAmount = jobsConfig.getNode(playerJob, "break", blockName, "expreward").getInt();
+                    boolean notify = accountConfig.getNode(playerUUID.toString(), "jobnotifications").getBoolean();
+
+                    BigDecimal payAmount = new BigDecimal(jobsConfig.getNode(playerJob, "break", blockName, "pay").getString()).setScale(2,
+                            BigDecimal.ROUND_DOWN);
+
+                    TEAccount playerAccount = (TEAccount) accountManager.getOrCreateAccount(player.getUniqueId()).get();
+
+                    if (notify) {
+                        player.sendMessage(Text.of(TextColors.GOLD, accountManager.getDefaultCurrency().getSymbol(), payAmount, TextColors.GRAY,
+                                " has been added to your balance."));
+                    }
+
+                    addExp(player, expAmount);
+                    playerAccount.deposit(accountManager.getDefaultCurrency(), payAmount, Cause.of(NamedCause.of("TotalEconomy", this)));
+                    checkForLevel(player);
                 }
             }
-        }
+        });
     }
 
-    @Listener
-    public void onPlayerPlaceBlock(ChangeBlockEvent.Place event) {
-        if (event.getCause().first(Player.class).isPresent()) {
-            Player player = event.getCause().first(Player.class).get();
-            UUID playerUUID = player.getUniqueId();
-            String playerJob = getPlayerJob(player);
-            String blockName = event.getTransactions().get(0).getFinal().getState().getType().getName().split(":")[1];
+    @Listener(order=Order.LAST)
+    public void onPlayerPlaceBlock(ChangeBlockEvent.Place event, @Root Player player) {
+        UUID playerUUID = player.getUniqueId();
+        String playerJob = getPlayerJob(player);
+
+        event.getTransactions().forEach(t -> {
+            String blockName = t.getFinal().getState().getType().getId();
 
             // Checks if the users current job has the place node.
             boolean hasPlaceNode = (jobsConfig.getNode(playerJob, "place").getValue() != null);
@@ -459,7 +457,7 @@ public class TEJobs {
                     checkForLevel(player);
                 }
             }
-        }
+        });
     }
 
     @Listener
@@ -549,6 +547,54 @@ public class TEJobs {
             event.getTransactions().forEach(t -> {
                 SlotAdapter slot = (SlotAdapter) t.getSlot();
                 ContainerWorkbench inventory = (ContainerWorkbench) event.getTargetInventory();
+
+                if (slot.slotNumber == 0 && currentCrafters.containsKey(player.getUniqueId())
+                        && currentCrafters.get(player.getUniqueId()).getFirst() == inventory.windowId) {
+                    UUID playerUUID = player.getUniqueId();
+                    String playerJob = getPlayerJob(player);
+                    net.minecraft.item.ItemStack result = currentCrafters.get(player.getUniqueId()).getSecond();
+                    String itemId = result.getItem().getRegistryName();
+                    // Checks if the users current job has the craft node.
+                    boolean hasCraftNode = (jobsConfig.getNode(playerJob, "craft").getValue() != null);
+                    if (jobsConfig.getNode(playerJob).getValue() != null) {
+                        if (hasCraftNode && jobsConfig.getNode(playerJob, "craft", itemId).getValue() != null) {
+                            int expAmount = jobsConfig.getNode(playerJob, "craft", itemId, "expreward").getInt() * result.stackSize;
+                            boolean notify = accountConfig.getNode(playerUUID.toString(), "jobnotifications").getBoolean();
+
+                            BigDecimal payAmount = new BigDecimal(jobsConfig.getNode(playerJob, "craft", itemId, "pay").getString())
+                                    .multiply(new BigDecimal(result.stackSize)).setScale(2,
+                                            BigDecimal.ROUND_DOWN);
+
+                            TEAccount playerAccount = (TEAccount) accountManager.getOrCreateAccount(player.getUniqueId()).get();
+
+                            if (notify) {
+                                player.sendMessage(Text.of(TextColors.GOLD, accountManager.getDefaultCurrency().getSymbol(), payAmount,
+                                        TextColors.GRAY, " has been added to your balance."));
+                            }
+
+                            addExp(player, expAmount);
+                            playerAccount.deposit(accountManager.getDefaultCurrency(), payAmount, Cause.of(NamedCause.of("TotalEconomy", this)));
+                            checkForLevel(player);
+                        }
+                    }
+
+                    currentCrafters.remove(player.getUniqueId());
+                } else if (slot.slotNumber == 0 && currentCrafters.containsKey(player.getUniqueId())
+                        && currentCrafters.get(player.getUniqueId()).getFirst() != inventory.windowId
+                        && inventory.craftResult.getStackInSlot(0) != null) {
+                    currentCrafters.remove(player.getUniqueId());
+                    currentCrafters.put(player.getUniqueId(),
+                            new Tuple<Integer, net.minecraft.item.ItemStack>(inventory.windowId, inventory.craftResult.getStackInSlot(0)));
+                } else if (slot.slotNumber == 0 && !currentCrafters.containsKey(player.getUniqueId())
+                        && inventory.craftResult.getStackInSlot(0) != null) {
+                    currentCrafters.put(player.getUniqueId(),
+                            new Tuple<Integer, net.minecraft.item.ItemStack>(inventory.windowId, inventory.craftResult.getStackInSlot(0)));
+                }
+            });
+        } else if (event.getTargetInventory() instanceof ContainerPlayer) {
+            event.getTransactions().forEach(t -> {
+                SlotAdapter slot = (SlotAdapter) t.getSlot();
+                ContainerPlayer inventory = (ContainerPlayer) event.getTargetInventory();
 
                 if (slot.slotNumber == 0 && currentCrafters.containsKey(player.getUniqueId())
                         && currentCrafters.get(player.getUniqueId()).getFirst() == inventory.windowId) {
