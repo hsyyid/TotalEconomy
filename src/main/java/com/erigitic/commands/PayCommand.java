@@ -23,52 +23,47 @@ import com.erigitic.main.TotalEconomy;
 /**
  * Created by Erigitic on 5/3/2015.
  */
-public class PayCommand implements CommandExecutor
-{
-	private TotalEconomy totalEconomy;
-	private AccountManager accountManager;
-	private Currency defaultCurrency;
+public class PayCommand implements CommandExecutor {
 
-	public PayCommand(TotalEconomy totalEconomy)
-	{
-		this.totalEconomy = totalEconomy;
-		this.accountManager = totalEconomy.getAccountManager();
-		this.defaultCurrency = accountManager.getDefaultCurrency();
-	}
+    private TotalEconomy totalEconomy;
+    private AccountManager accountManager;
+    private Currency defaultCurrency;
 
-	@Override
-	public CommandResult execute(CommandSource src, CommandContext args) throws CommandException
-	{
-		if (src instanceof Player)
-		{
-			Player sender = ((Player) src).getPlayer().get();
-			Player recipient = args.<Player> getOne("player").get();
-			BigDecimal amount = new BigDecimal(args.<Integer> getOne("amount").get()).setScale(2, BigDecimal.ROUND_DOWN);
+    public PayCommand(TotalEconomy totalEconomy) {
+        this.totalEconomy = totalEconomy;
+        this.accountManager = totalEconomy.getAccountManager();
+        this.defaultCurrency = accountManager.getDefaultCurrency();
+    }
 
-			if (amount.intValue() > 0)
-			{
-				TEAccount playerAccount = (TEAccount) accountManager.getOrCreateAccount(sender.getUniqueId()).get();
-				TEAccount recipientAccount = (TEAccount) accountManager.getOrCreateAccount(recipient.getUniqueId()).get();
+    @Override
+    public CommandResult execute(CommandSource src, CommandContext args) throws CommandException {
+        if (src instanceof Player) {
+            Player sender = ((Player) src).getPlayer().get();
+            Player recipient = args.<Player>getOne("player").get();
+            BigDecimal amount = new BigDecimal(args.<Integer>getOne("amount").get()).setScale(2, BigDecimal.ROUND_DOWN);
 
-				TransferResult transferResult = playerAccount.transfer(recipientAccount, accountManager.getDefaultCurrency(), amount, Cause.of(NamedCause.of("TotalEconomy", this)));
+            // Check for a negative number
+            if (amount.intValue() > 0) {
+                TEAccount playerAccount = (TEAccount) accountManager.getOrCreateAccount(sender.getUniqueId()).get();
+                TEAccount recipientAccount = (TEAccount) accountManager.getOrCreateAccount(recipient.getUniqueId()).get();
 
-				if (transferResult.getResult() == ResultType.SUCCESS)
-				{
-					sender.sendMessage(Text.of(TextColors.GRAY, "You have sent ", TextColors.GOLD, defaultCurrency.getSymbol(), amount, TextColors.GRAY, " to ", TextColors.GOLD, recipient.getName()));
+                TransferResult transferResult = playerAccount.transfer(recipientAccount, accountManager.getDefaultCurrency(), amount,
+                        Cause.of(NamedCause.of("TotalEconomy", this)));
 
-					recipient.sendMessage(Text.of(TextColors.GRAY, "You have received ", TextColors.GOLD, defaultCurrency.getSymbol(), amount, TextColors.GRAY, " from ", TextColors.GOLD, sender.getName()));
-				}
-				else if (transferResult.getResult() == ResultType.ACCOUNT_NO_FUNDS)
-				{
-					sender.sendMessage(Text.of(TextColors.RED, "Insufficient funds."));
-				}
-			}
-			else
-			{
-				sender.sendMessage(Text.of(TextColors.RED, "The amount must be positive."));
-			}
-		}
+                if (transferResult.getResult() == ResultType.SUCCESS) {
+                    sender.sendMessage(Text.of(TextColors.GRAY, "You have sent ", TextColors.GOLD, defaultCurrency.getSymbol(), amount,
+                            TextColors.GRAY, " to ", TextColors.GOLD, recipient.getName()));
 
-		return CommandResult.success();
-	}
+                    recipient.sendMessage(Text.of(TextColors.GRAY, "You have received ", TextColors.GOLD, defaultCurrency.getSymbol(), amount,
+                            TextColors.GRAY, " from ", TextColors.GOLD, sender.getName()));
+                } else if (transferResult.getResult() == ResultType.ACCOUNT_NO_FUNDS) {
+                    sender.sendMessage(Text.of(TextColors.RED, "Insufficient funds."));
+                }
+            } else {
+                sender.sendMessage(Text.of(TextColors.RED, "The amount must be positive."));
+            }
+        }
+
+        return CommandResult.success();
+    }
 }

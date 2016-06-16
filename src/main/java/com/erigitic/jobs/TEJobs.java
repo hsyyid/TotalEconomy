@@ -35,6 +35,7 @@ import org.spongepowered.api.scheduler.Scheduler;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
+import org.spongepowered.api.util.Tuple;
 import org.spongepowered.api.world.Location;
 import org.spongepowered.api.world.World;
 import org.spongepowered.common.item.inventory.adapter.impl.slots.SlotAdapter;
@@ -50,7 +51,6 @@ import com.google.common.collect.Maps;
 
 import net.minecraft.inventory.ContainerPlayer;
 import net.minecraft.inventory.ContainerWorkbench;
-import net.minecraft.util.Tuple;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
@@ -116,12 +116,12 @@ public class TEJobs {
                     TEAccount playerAccount = (TEAccount) accountManager.getOrCreateAccount(player.getUniqueId()).get();
 
                     playerAccount.deposit(totalEconomy.getDefaultCurrency(), salary, Cause.of(NamedCause.of("TotalEconomy", this)));
-                    player.sendMessage(Text.of(TextColors.GRAY, "Your salary of ", TextColors.GOLD, totalEconomy.getCurrencySymbol(), salary,
-                            TextColors.GRAY, " has just been paid."));
+                    player.sendMessage(Text.of(TextColors.GRAY, "Your salary of ", TextColors.GOLD,
+                            totalEconomy.getCurrencySymbol(), salary, TextColors.GRAY, " has just been paid."));
                 }
             }
-        }).delay(jobsConfig.getNode("salarydelay").getInt(), TimeUnit.SECONDS).interval(jobsConfig.getNode("salarydelay").getInt(), TimeUnit.SECONDS)
-                .name("Pay Day").submit(totalEconomy);
+        }).delay(jobsConfig.getNode("salarydelay").getInt(), TimeUnit.SECONDS).interval(jobsConfig.getNode("salarydelay")
+                .getInt(), TimeUnit.SECONDS).name("Pay Day").submit(totalEconomy);
     }
 
     /**
@@ -174,8 +174,8 @@ public class TEJobs {
         }
 
         if (accountConfig.getNode(playerUUID.toString(), "jobnotifications").getBoolean() == true)
-            player.sendMessage(Text.of(TextColors.GRAY, "You have gained ", TextColors.GOLD, expAmount, TextColors.GRAY, " exp in the ",
-                    TextColors.GOLD, jobName, TextColors.GRAY, " job."));
+            player.sendMessage(Text.of(TextColors.GRAY, "You have gained ", TextColors.GOLD, expAmount, TextColors.GRAY,
+                    " exp in the ", TextColors.GOLD, jobName, TextColors.GRAY, " job."));
     }
 
     /**
@@ -194,8 +194,8 @@ public class TEJobs {
         if (playerCurExp >= expToLevel) {
             accountConfig.getNode(playerUUID.toString(), "jobstats", jobName + "Level").setValue(playerLevel + 1);
             accountConfig.getNode(playerUUID.toString(), "jobstats", jobName + "Exp").setValue(playerCurExp - expToLevel);
-            player.sendMessage(
-                    Text.of(TextColors.GRAY, "Congratulations, you are now a level ", TextColors.GOLD, playerLevel + 1, " ", jobName, "."));
+            player.sendMessage(Text.of(TextColors.GRAY, "Congratulations, you are now a level ", TextColors.GOLD,
+                    playerLevel + 1, " ", jobName, "."));
         }
     }
 
@@ -381,7 +381,7 @@ public class TEJobs {
      *
      * @param event PlayerBlockBreakEvent
      */
-    @Listener(order=Order.LAST)
+    @Listener(order = Order.LAST)
     public void onPlayerBlockBreak(ChangeBlockEvent.Break event, @Root Player player) {
         UUID playerUUID = player.getUniqueId();
         String playerJob = getPlayerJob(player);
@@ -426,7 +426,7 @@ public class TEJobs {
         });
     }
 
-    @Listener(order=Order.LAST)
+    @Listener(order = Order.LAST)
     public void onPlayerPlaceBlock(ChangeBlockEvent.Place event, @Root Player player) {
         UUID playerUUID = player.getUniqueId();
         String playerJob = getPlayerJob(player);

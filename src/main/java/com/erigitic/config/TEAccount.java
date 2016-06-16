@@ -119,6 +119,14 @@ public class TEAccount implements UniqueAccount {
             BigDecimal newBalance = curBalance.add(amount);
 
             accountConfig.getNode(uuid.toString(), currencyName + "-balance").setValue(newBalance.setScale(2, BigDecimal.ROUND_DOWN));
+
+            // Reset balance to the money cap if it goes over
+            if (totalEconomy.isLoadMoneyCap()) {
+                if (getBalance(currency, contexts).compareTo(totalEconomy.getMoneyCap()) == 1) {
+                    accountConfig.getNode(uuid.toString(), currencyName + "-balance").setValue(totalEconomy.getMoneyCap());
+                }
+            }
+            
             accountManager.saveAccountConfig();
 
             transactionResult = new TETransactionResult(this, currency, amount, contexts, ResultType.SUCCESS, TransactionTypes.DEPOSIT);
